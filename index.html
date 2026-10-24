@@ -562,11 +562,24 @@ function selected(){
     }))));
   return order;
 }
+/* The policy files normally sit in a docs/ folder beside this page, but some
+   upload routes flatten that folder away. Try both, and remember which worked. */
+let DOCBASE=null;
+async function getJSON(name){
+  const bases = DOCBASE!==null ? [DOCBASE] : ["docs/",""];
+  let err;
+  for(const b of bases){
+    try{
+      const r=await fetch(b+name);
+      if(r.ok){const j=await r.json(); DOCBASE=b; return j}
+      err=new Error(r.status+" "+b+name);
+    }catch(e){err=e}
+  }
+  throw err||new Error("not found: "+name);
+}
 async function loadDoc(d){
   if(CACHE[d.id])return CACHE[d.id];
-  const r=await fetch("docs/"+encodeURIComponent(d.id)+".json");
-  if(!r.ok)throw new Error("could not load "+d.id);
-  const j=await r.json();
+  const j=await getJSON(encodeURIComponent(d.id)+".json");
   CACHE[d.id]=j; return j;
 }
 async function renderStage(){
@@ -719,11 +732,11 @@ window.addEventListener("resize",fitZoom);
 /* ---- boot ---- */
 (async function(){
   try{
-    const r=await fetch("docs/_index.json");
-    TREE.NABH.libraries.HOPE.flat=await r.json();
+    TREE.NABH.libraries.HOPE.flat=await getJSON("_index.json");
   }catch(e){
     document.getElementById("noticeTxt").textContent=
-      "The document list could not be loaded — open this page by its web address, not as a file.";
+      "The document list could not be loaded — check that the policy files were uploaded "+
+      "alongside this page, and open the site by its web address rather than as a file.";
   }
   renderSegs();renderList();refreshTop();renderStage();
   if(!P())openModal();

@@ -86,11 +86,14 @@ input,select,textarea{font:inherit;color:inherit}
 .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
 .divider{width:calc(210mm * var(--z));font-size:11.5px;color:#5c6b69;display:flex;align-items:center;gap:10px}
 .divider::before,.divider::after{content:"";height:1px;background:#c9d2d0;flex:1}
+/* the band between two pages of one document, as a PDF reader shows it */
+.pgap{width:calc(210mm * var(--z));background:var(--bar);color:#b9c4c2;font-size:11.5px;
+  padding:5px 12px;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 
 /* ---------- A4 page ---------- */
 .slot{width:calc(210mm * var(--z));height:calc(297mm * var(--z));flex:none;
   box-shadow:0 2px 10px rgba(0,0,0,.14);background:#fff}
-.page{width:210mm;height:297mm;padding:10mm 13.2mm 12mm 25.4mm;background:#fff;position:relative;overflow:hidden;
+.page{width:210mm;height:297mm;padding:10mm 12.7mm 12mm 12.7mm;background:#fff;position:relative;overflow:hidden;
   transform:scale(var(--z));transform-origin:top left;font-family:var(--doc);color:#000;font-size:10pt;line-height:1.4}
 .page *{box-sizing:border-box}
 .pbody{overflow:hidden;padding-top:5mm}
@@ -137,7 +140,7 @@ table.amend td{height:7.4mm}
 .pbody table.t.toc th,.pbody table.t.toc td{font-size:10pt;padding:4pt 7pt}
 .pbody table.t.toc th{background:none}
 .pbody img{max-width:100%;height:auto;display:block;margin:5pt auto}
-.stamp{position:absolute;right:13.2mm;bottom:7mm;width:25mm;height:25mm}
+.stamp{position:absolute;right:12.7mm;bottom:7mm;width:25mm;height:25mm}
 .stamp img{width:100%;height:100%;object-fit:contain}
 
 /* ---------- modal ---------- */
@@ -185,7 +188,7 @@ table.amend td{height:7.4mm}
 @media print{
   @page{size:A4;margin:0}
   body{background:#fff}
-  .topbar,.picker,.notice,.scrim,.empty,.divider{display:none!important}
+  .topbar,.picker,.notice,.scrim,.empty,.divider,.pgap{display:none!important}
   .app,.main,.panel,.stage{display:block;height:auto;padding:0;margin:0;border:0;border-radius:0;background:#fff;overflow:visible}
   .slot{width:210mm;height:297mm;box-shadow:none;page-break-after:always;break-after:page}
   .slot:last-child{page-break-after:auto;break-after:auto}
@@ -477,9 +480,14 @@ function buildDocument(doc,mount){
   // drop a trailing empty page
   const last=pages[pages.length-1];
   if(pages.length>1 && last.body.children.length===0){last.slot.remove();pages.pop()}
-  // stamp the real page numbers in
+  // stamp the real page numbers in, and band the gaps between pages
   pages.forEach((pg,i)=>{
     pg.page.querySelector(".pagenum").textContent=(i+1)+" of "+pages.length;
+    if(i>0){
+      const bar=el("div","pgap");
+      bar.textContent="Page "+(i+1)+" / "+pages.length;
+      pg.slot.parentNode.insertBefore(bar,pg.slot);
+    }
   });
   return pages.length;
 }

@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOP Generator &middot; Manavi FieldCheck</title>
+<style>
+/* Layout: app shell (left picker / right A4 preview) over a measuring paginator */
+:root{
+  --teal:#0f7f72; --teal-dark:#0b5f56; --teal-tint:#e6f2f0;
+  --ink:#16201f; --ink-2:#5a6665; --line:#d8dddc; --shell:#f2f4f3; --card:#fff;
+  --bar:#1d2524; --amber:#8a6a0b; --amber-tint:#fdf4dd; --red:#b23b32;
+  --ui:"Segoe UI",Roboto,-apple-system,system-ui,sans-serif;
+  --doc:Cambria,"Times New Roman",Georgia,serif;
+  --z:1;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--shell);color:var(--ink);font-family:var(--ui);font-size:14px}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+
+/* ---------- shell ---------- */
+.app{display:flex;flex-direction:column;height:100%}
+.topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;
+  background:var(--card);border-bottom:1px solid var(--line)}
+.brand{font-weight:600;letter-spacing:-.01em}
+.brand span{display:block;font-weight:400;font-size:11.5px;color:var(--ink-2)}
+.working{display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap}
+.working .lbl{font-size:12px;color:var(--ink-2)}
+.working .name{font-weight:600}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:7px 13px}
+.btn:hover{border-color:#b9c2c0}
+.btn-primary{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:500}
+.btn-primary:hover{background:var(--teal-dark);border-color:var(--teal-dark)}
+.btn[disabled]{opacity:.5;cursor:default}
+
+.main{flex:1;display:flex;gap:16px;min-height:0;padding:16px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;min-height:0}
+.picker{width:370px;flex:none}
+.viewer{flex:1;min-width:0}
+
+.picker-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.ttl{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
+.segmented{display:flex;background:var(--shell);border-radius:8px;padding:3px}
+.segmented button{flex:1;border:0;background:transparent;border-radius:6px;padding:6px 4px;color:var(--ink-2);font-weight:500;font-size:13px}
+.segmented button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.search{border:1px solid var(--line);border-radius:8px;padding:8px 11px;width:100%}
+.picker-actions{display:flex;align-items:center;gap:8px}
+.picker-actions .count{margin-left:auto;font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.link{border:0;background:none;color:var(--teal);padding:4px 2px;font-weight:500}
+.picker-list{overflow:auto;padding:8px}
+
+.folder{border:1px solid var(--line);border-radius:10px;margin-bottom:7px;overflow:hidden}
+.folder>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fafbfb}
+.folder>summary::-webkit-details-marker{display:none}
+.folder[open]>summary{border-bottom:1px solid var(--line)}
+.caret{flex:none;width:9px;height:9px;border-right:1.6px solid #8e9a98;border-bottom:1.6px solid #8e9a98;
+  transform:rotate(-45deg);transition:transform .15s;margin-left:2px}
+.folder[open] .caret{transform:rotate(45deg)}
+.fcode{font-weight:600;font-size:12.5px;color:var(--teal-dark);background:var(--teal-tint);
+  border:1px solid #c6e0db;border-radius:5px;padding:2px 7px;flex:none}
+.fname{flex:1;min-width:0;font-size:12.5px;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcount{flex:none;font-size:11.5px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.fbody{padding:6px}
+.sop{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:9px;border:1px solid transparent}
+.sop:hover{background:var(--shell)}
+.sop.on{border-color:var(--teal);background:var(--teal-tint)}
+.sop input{margin:2px 0 0;width:16px;height:16px;accent-color:var(--teal);flex:none}
+.sop .t{flex:1;min-width:0}
+.sop .t b{display:block;font-weight:500;line-height:1.35;font-size:13.5px}
+.sop .t small{color:var(--ink-2);font-size:12px}
+.code{flex:none;font-size:11px;font-weight:600;background:var(--shell);border:1px solid var(--line);
+  border-radius:5px;padding:2px 6px;color:var(--ink-2)}
+.dup{color:var(--red);border-color:#e7c3bf;background:#fbeceb}
+.waiting{padding:10px 12px;font-size:12.5px;color:var(--amber);background:var(--amber-tint);
+  border:1px dashed #e8d49a;border-radius:8px;margin:4px}
+
+.notice{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--bar);color:#eef2f1;
+  padding:10px 14px;border-radius:11px 11px 0 0;font-size:13px}
+.notice .dot{width:7px;height:7px;border-radius:50%;background:#e2534a;flex:none}
+.notice .btn-primary{margin-left:auto}
+.stage{flex:1;overflow:auto;background:#e8ecea;padding:18px 0;display:flex;flex-direction:column;align-items:center;gap:18px}
+.empty{margin:auto;max-width:36ch;text-align:center;color:var(--ink-2);line-height:1.6;padding:24px}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+.divider{width:calc(210mm * var(--z));font-size:11.5px;color:#5c6b69;display:flex;align-items:center;gap:10px}
+.divider::before,.divider::after{content:"";height:1px;background:#c9d2d0;flex:1}
+/* the band between two pages of one document, as a PDF reader shows it */
+.pgap{width:calc(210mm * var(--z));background:var(--bar);color:#b9c4c2;font-size:11.5px;
+  padding:5px 12px;text-align:right;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+/* ---------- A4 page ---------- */
+.slot{width:calc(210mm * var(--z));height:calc(297mm * var(--z));flex:none;
+  box-shadow:0 2px 10px rgba(0,0,0,.14);background:#fff}
+.page{width:210mm;height:297mm;padding:10mm 12.7mm 12mm 12.7mm;background:#fff;position:relative;overflow:hidden;
+  transform:scale(var(--z));transform-origin:top left;font-family:var(--doc);color:#000;font-size:10pt;line-height:1.4}
+.page *{box-sizing:border-box}
+.pbody{overflow:hidden;padding-top:5mm}
+
+table.hdr{width:100%;border-collapse:collapse;table-layout:fixed}
+table.hdr td{border:1pt solid #000;padding:2pt 4pt;text-align:center;vertical-align:middle;font-size:9pt}
+td.logo{width:33%;padding:3pt}
+td.logo img{max-height:17mm;max-width:100%;object-fit:contain;display:block;margin:0 auto}
+td.logo .addr{font-size:5.4pt;line-height:1.25;margin-top:1.5pt}
+td.logo .ph{height:15mm;display:flex;align-items:center;justify-content:center;color:#9aa;font-family:var(--ui);font-size:7pt}
+td.docno b{font-size:10.5pt}
+td.ttl2{font-size:8.5pt;line-height:1.2}
+td.k{width:9%;font-weight:bold;font-size:8.5pt}
+td.v{width:13%;font-variant-numeric:tabular-nums}
+.pagenum{font-variant-numeric:tabular-nums}
+
+h1.doctitle{text-align:center;font-size:17pt;line-height:1.3;margin:16mm 6mm 14mm;font-weight:bold}
+table.sign{width:80%;margin:0 auto;border-collapse:collapse}
+table.sign td{border:1pt solid #000;padding:5pt 8pt;vertical-align:middle;font-size:10pt}
+table.sign td.lbl{width:38%}
+.sigline{height:13mm;display:flex;align-items:flex-end}
+.sigline img{max-height:13mm;max-width:46mm;object-fit:contain}
+.sign-row{margin:4pt 0}
+
+h2.sheet{text-align:center;font-size:11pt;font-weight:bold;margin:4mm 0 6mm}
+table.amend{width:92%;margin:0 auto;border-collapse:collapse}
+table.amend th,table.amend td{border:1pt solid #000;font-size:9pt;padding:3pt;text-align:center}
+table.amend th{font-weight:normal;line-height:1.2}
+table.amend td{height:7.4mm}
+
+/* converted policy body */
+.pbody p{margin:0 0 6pt;text-align:justify}
+.pbody p.lead{font-weight:bold;margin:9pt 0 4pt;text-align:left}
+.pbody ul.d{list-style:none;margin:0 0 7pt;padding:0 0 0 10pt}
+.pbody ul.d ul.d{padding-left:16pt;margin-top:4pt}
+.pbody ul.d>li{position:relative;padding-left:13pt;margin:0 0 5pt;text-align:justify}
+.pbody ul.d>li::before{content:"\2013";position:absolute;left:0;font-weight:bold}
+.pbody table.t{width:100%;border-collapse:collapse;margin:5pt 0 9pt;table-layout:fixed}
+.pbody table.t th,.pbody table.t td{border:1pt solid #000;padding:3pt 5pt;font-size:9.5pt;
+  vertical-align:top;text-align:left;word-wrap:break-word}
+.pbody table.t th{font-weight:bold;background:#f2f2f2}
+.pbody p.toch{font-weight:bold;text-decoration:underline;margin:0 0 5pt;text-align:left}
+.pbody table.t.toc{width:88%;margin:0 auto 9pt;table-layout:auto}
+.pbody table.t.toc th,.pbody table.t.toc td{font-size:10pt;padding:4pt 7pt}
+.pbody table.t.toc th{background:none}
+.pbody img{max-width:100%;height:auto;display:block;margin:5pt auto}
+.stamp{position:absolute;right:12.7mm;bottom:7mm;width:25mm;height:25mm}
+.stamp img{width:100%;height:100%;object-fit:contain}
+
+/* ---------- modal ---------- */
+.scrim{position:fixed;inset:0;background:rgba(20,28,27,.45);display:flex;align-items:center;justify-content:center;
+  padding:16px;z-index:50}
+.modal{background:#eef4f3;border-radius:14px;width:min(860px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.modal header{display:flex;align-items:center;padding:16px 20px;background:#e4eeec;border-bottom:1px solid #cfdddb}
+.modal header h2{margin:0;font-size:19px;color:var(--teal-dark);letter-spacing:-.01em}
+.modal header button{margin-left:auto;border:0;background:none;font-size:20px;line-height:1;color:var(--ink-2);padding:4px 8px}
+.modal .scroll{overflow:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px}
+.group{background:#fff;border:1px solid #dde6e4;border-radius:10px;padding:14px}
+.group h3{margin:0 0 12px;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.group h3 em{font-style:normal;font-size:11px;font-weight:600;color:var(--teal);background:var(--teal-tint);
+  border:1px solid #c6e0db;border-radius:5px;padding:2px 7px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f.wide{grid-column:1/-1}
+.f label{font-size:12.5px;color:#3f4a49}
+.f input[type=text],.f input[type=date]{border:1px solid #cfd8d6;border-radius:8px;padding:9px 11px;background:#fff;width:100%}
+.f input:focus-visible,.btn:focus-visible,.sop:focus-within,.folder>summary:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.auto{font-size:12.5px;color:#3f4a49;padding-top:9px}
+.auto i{font-style:normal;color:var(--ink-2)}
+.auto b{font-variant-numeric:tabular-nums}
+.drop{border:1px dashed #c3cfcd;border-radius:9px;padding:10px;display:flex;align-items:center;gap:11px;background:#fbfdfc;cursor:pointer}
+.drop .thumb{width:62px;height:42px;border:1px solid #e2e9e8;border-radius:6px;background:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:10px;color:#9fadab}
+.drop .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+.drop .meta{flex:1;min-width:0;font-size:12px;color:var(--ink-2)}
+.drop input[type=file]{display:none}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px}
+.chk input{width:16px;height:16px;accent-color:var(--teal)}
+.modal footer{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 20px;background:#e9f1ef;border-top:1px solid #cfdddb}
+.modal footer .note{font-size:12.5px;color:var(--ink-2);max-width:30ch}
+.modal footer .btn-primary{flex:1;min-width:180px;padding:12px;border-radius:9px;font-size:15px}
+.pick-row{text-align:left;padding:12px 14px;width:100%}
+
+@media (max-width:900px){
+  .main{flex-direction:column}
+  .picker{width:auto}
+  .picker-list{max-height:40vh}
+  .grid{grid-template-columns:1fr}
+}
+
+/* ---------- print ---------- */
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  .topbar,.picker,.notice,.scrim,.empty,.divider,.pgap{display:none!important}
+  .app,.main,.panel,.stage{display:block;height:auto;padding:0;margin:0;border:0;border-radius:0;background:#fff;overflow:visible}
+  .slot{width:210mm;height:297mm;box-shadow:none;page-break-after:always;break-after:page}
+  .slot:last-child{page-break-after:auto;break-after:auto}
+  .page{transform:none}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Manavi FieldCheck<span>SOP &amp; policy generator</span></div>
+    <div class="working">
+      <span class="lbl">Working on</span>
+      <span class="name" id="hospName">No hospital selected</span>
+      <button class="btn" id="btnChange">Change</button>
+      <button class="btn btn-primary" id="btnProfile">Hospital profile</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="panel picker">
+      <div class="picker-head">
+        <div class="ttl">Hospital type</div>
+        <div class="segmented" id="stdSeg" role="group" aria-label="Hospital type"></div>
+        <div id="libWrap" hidden>
+          <div class="ttl" style="margin-bottom:6px">Library</div>
+          <div class="segmented" id="libSeg" role="group" aria-label="Library"></div>
+        </div>
+        <input class="search" id="search" type="search" placeholder="Search by title or code" autocomplete="off">
+        <div class="picker-actions">
+          <button class="link" id="btnAll">Select all</button>
+          <button class="link" id="btnClear">Clear</button>
+          <span class="count" id="count">0 selected</span>
+        </div>
+      </div>
+      <div class="picker-list" id="list"></div>
+    </div>
+
+    <div class="panel viewer">
+      <div class="notice">
+        <span class="dot"></span>
+        <span id="noticeTxt">Fill the hospital profile once. Every SOP you tick is headed, signed and stamped for that hospital.</span>
+        <button class="btn btn-primary" id="btnPrint">Print / Save as PDF</button>
+      </div>
+      <div class="stage" id="stage"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ============================================================
+   1. LIBRARIES
+   ============================================================ */
+const CHAPTERS=[
+ ["AAC","Access, assessment and continuity of care"],
+ ["COP","Care of patients"],
+ ["CQI","Continuous quality improvement"],
+ ["FMS","Facility management and safety"],
+ ["HIC","Hospital infection control"],
+ ["HRM","Human resource management"],
+ ["IMS","Information management system"],
+ ["MOM","Management of medication"],
+ ["PRE","Patient rights and education"],
+ ["ROM","Responsibilities of management"]
+];
+function emptyChapters(){const o={};CHAPTERS.forEach(([c])=>o[c]=[]);return o}
+
+const TREE={
+  NABH:{label:"NABH hospital",libraries:{
+    HOPE:{label:"HOPE",flat:[]},
+    MAIN:{label:"MAIN",flat:[]}
+  }},
+  AYUSH:{label:"Ayurvedic hospital",libraries:{
+    AYUSH:{label:"Ayurvedic",chapters:emptyChapters()}
+  }}
+};
+function groupsOf(L){return L.flat?[["",L.flat]]:CHAPTERS.map(([c])=>[c,L.chapters[c]||[]])}
+const CACHE={};   // id -> {html}
+
+/* ============================================================
+   2. PROFILE
+   ============================================================ */
+const BLANK={hospital:"",prefix:"NABH",codeShort:"",logo:"",address:"",issueDate:"",issueNo:"01",revNo:"00",
+  prepRole:"NABH Coordinator",prepName:"",prepSign:"",
+  apprRole:"Medical Director",apprName:"",apprSign:"",
+  updRole:"NABH Coordinator",updName:"",updSign:"",updSame:true,stamp:""};
+const KEY="manavi.sop.v3";
+let store={profiles:{},active:""};
+try{const r=localStorage.getItem(KEY);if(r)store=JSON.parse(r)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}}
+function P(){return store.profiles[store.active]||null}
+
+let std="NABH", lib="HOPE", picked=new Set(), draft=null, filter="", building=false;
+
+/* one year on, computed as text — a Date here would shift the day by the
+   browser's timezone when converted back to ISO */
+function plusYear(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso||""))return"";
+  let[y,m,d]=iso.split("-");
+  y=String(Number(y)+1);
+  if(m==="02"&&d==="29")d="28";          // 29 Feb has no anniversary in a common year
+  return y+"-"+m+"-"+d;
+}
+function dmy(iso){if(!iso)return"__/__/____";const[y,m,d]=iso.split("-");return d+"/"+m+"/"+y}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function el(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e}
+
+/* ============================================================
+   3. PAGE FURNITURE
+   ============================================================ */
+function headerHTML(doc){
+  const p=P();
+  const logo=p.logo?`<img src="${p.logo}" alt="">${p.address?`<div class="addr">${esc(p.address)}</div>`:""}`
+                   :`<div class="ph">logo not added</div>`;
+  const docNo=`${esc(p.prefix||"NABH")}/${esc(p.codeShort||"____")}/${esc(doc.code)}`;
+  return `<table class="hdr">
+    <tr><td class="logo" rowspan="3">${logo}</td>
+      <td class="docno"><b>Doc. No.</b><br>${docNo}</td>
+      <td class="k">Rev.<br>Date</td><td class="v">${dmy(plusYear(p.issueDate))}</td>
+      <td class="k">Rev.<br>No.</td><td class="v">${esc(p.revNo)}</td></tr>
+    <tr><td class="ttl2" rowspan="2">${esc(doc.title)}</td>
+      <td class="k">Issue<br>Date</td><td class="v">${dmy(p.issueDate)}</td>
+      <td class="k">Issue<br>No.</td><td class="v">${esc(p.issueNo)}</td></tr>
+    <tr><td class="k">Page</td><td class="pagenum" colspan="3">&nbsp;</td></tr>
+  </table>`;
+}
+function signBlock(role,name,sign){
+  return `<div class="sign-row">${esc(role)}</div>
+    <div class="sign-row">Name&nbsp;&nbsp;&nbsp;&nbsp;: ${esc(name)}</div>
+    <div class="sign-row">Signature : <span class="sigline">${sign?`<img src="${sign}" alt="">`:""}</span></div>`;
+}
+function titleHTML(doc){
+  const p=P(), upd=p.updSame?{r:p.prepRole,n:p.prepName,s:p.prepSign}:{r:p.updRole,n:p.updName,s:p.updSign};
+  return `<h1 class="doctitle">${esc(doc.title)}</h1>
+  <table class="sign">
+    <tr><td class="lbl">Prepared by:</td><td>${signBlock(p.prepRole,p.prepName,p.prepSign)}</td></tr>
+    <tr><td class="lbl">Approved By:</td><td>${signBlock(p.apprRole,p.apprName,p.apprSign)}</td></tr>
+    <tr><td class="lbl">Responsibility of Updating :</td><td>${signBlock(upd.r,upd.n,upd.s)}</td></tr>
+  </table>`;
+}
+function amendHTML(){
+  let rows="";for(let i=0;i<18;i++)rows+="<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
+  return `<h2 class="sheet">AMENDMENT SHEET</h2>
+  <table class="amend"><tr><th>Sr. No.</th><th>Section no &amp;<br>page no</th><th>Details of the<br>amendment</th>
+  <th>Reasons</th><th>Signature of<br>the preparatory<br>authority</th><th>Signature of<br>the approval<br>authority</th></tr>
+  ${rows}</table>`;
+}
+
+/* ============================================================
+   4. PAGINATOR
+   Flows blocks into A4 pages, measuring as it goes.
+   ============================================================ */
+function makePage(doc,mount){
+  const slot=el("div","slot"), page=el("div","page");
+  page.innerHTML=headerHTML(doc);
+  const body=el("div","pbody");
+  page.appendChild(body);
+  const stamp=el("div","stamp");
+  const p=P(); if(p.stamp)stamp.innerHTML=`<img src="${p.stamp}" alt="">`;
+  page.appendChild(stamp);
+  slot.appendChild(page); mount.appendChild(slot);
+  // available height = page box minus padding minus the header table
+  const hdr=page.querySelector("table.hdr");
+  const avail=page.clientHeight - hdr.offsetHeight
+            - parseFloat(getComputedStyle(page).paddingTop)
+            - parseFloat(getComputedStyle(page).paddingBottom);
+  body.style.height=Math.max(60,avail)+"px";
+  return {slot,page,body};
+}
+function overflows(body){return body.scrollHeight > body.clientHeight+1}
+
+/* Place as much of `node` as fits inside `container` (already on the page).
+   Descends through nested lists and inline markup, splitting text by whole words.
+   Returns null when all of it fitted, "none" when none of it did, or a remainder node. */
+function place(node,container,body){
+  container.appendChild(node);
+  if(!overflows(body))return null;
+  container.removeChild(node);
+
+  if(node.nodeType===3){                              // text node
+    const words=node.nodeValue.split(/(\s+)/);
+    const t=document.createTextNode("");
+    container.appendChild(t);
+    let lo=0,hi=words.length,best=0;
+    while(lo<=hi){
+      const mid=(lo+hi)>>1;
+      t.nodeValue=words.slice(0,mid).join("");
+      if(overflows(body)){hi=mid-1}else{best=mid;lo=mid+1}
+    }
+    t.nodeValue=words.slice(0,best).join("");
+    if(!t.nodeValue.trim()){container.removeChild(t);return "none"}
+    if(best>=words.length)return null;
+    return document.createTextNode(words.slice(best).join(""));
+  }
+  if(node.nodeType!==1)return "none";
+  const tag=node.tagName;
+  if(tag==="IMG"||tag==="BR"||tag==="HR")return "none";   // atomic — move it whole
+
+  const shell=node.cloneNode(false);
+  container.appendChild(shell);
+  const kids=Array.from(node.childNodes);
+  let any=false,rest=null,i=0;
+  for(;i<kids.length;i++){
+    const r=place(kids[i],shell,body);
+    if(r===null){any=true;continue}
+    if(r==="none")break;
+    any=true;rest=r;i++;break;
+  }
+  if(!any){container.removeChild(shell);return "none"}
+  if(i>=kids.length&&!rest)return null;
+  const remainder=node.cloneNode(false);
+  if(rest)remainder.appendChild(rest);
+  for(let j=i;j<kids.length;j++)remainder.appendChild(kids[j]);
+  return hasContent(remainder)?remainder:null;
+}
+/* true when a node would actually show something on the page */
+function hasContent(n){
+  if(!n)return false;
+  if(n.nodeType===3)return !!n.nodeValue.trim();
+  return !!(n.textContent||"").trim() || !!n.querySelector("img,table,hr");
+}
+
+/* Split one top-level block across a page boundary.
+   Returns the node itself when it cannot be split at all. */
+function splitInto(node,body){
+  const tag=node.tagName;
+  if(tag==="TABLE"){
+    const rows=Array.from(node.rows);
+    if(rows.length<2)return node;
+    const head=rows[0].querySelector("th")?rows[0]:null;
+    const shell=node.cloneNode(false), tb=el("tbody"); shell.appendChild(tb);
+    body.appendChild(shell);
+    let start=0;
+    if(head){tb.appendChild(head.cloneNode(true));start=1}
+    let i=start;
+    for(;i<rows.length;i++){
+      tb.appendChild(rows[i]);
+      if(overflows(body)){tb.removeChild(rows[i]);break}
+    }
+    const placed=tb.rows.length-(head?1:0);
+    if(placed<1){body.removeChild(shell);return node}
+    if(i>=rows.length)return null;
+    const rest=node.cloneNode(false), rb=el("tbody"); rest.appendChild(rb);
+    if(head)rb.appendChild(head.cloneNode(true));
+    for(let j=i;j<rows.length;j++)rb.appendChild(rows[j]);
+    return rest;
+  }
+  const r=place(node,body,body);
+  return r==="none"?node:r;
+}
+
+function buildDocument(doc,mount){
+  const frag=document.createDocumentFragment();
+  const holder=el("div"); frag.appendChild(holder);
+  mount.appendChild(holder);
+
+  const pages=[];
+  let cur=makePage(doc,holder); pages.push(cur);
+
+  const src=el("div");
+  src.innerHTML=titleHTML(doc)+'<div class="brk"></div>'+amendHTML()+'<div class="brk"></div>'+doc.html;
+  const queue=Array.from(src.childNodes).filter(n=>
+    n.nodeType===1 && (n.classList.contains("brk") || hasContent(n)));
+
+  let guard=0;
+  while(queue.length && guard++<6000){
+    const blk=queue.shift();
+    if(blk.classList && blk.classList.contains("brk")){       // forced page break
+      if(cur.body.children.length){cur=makePage(doc,holder);pages.push(cur)}
+      continue;                                               // never leave a page blank
+    }
+    cur.body.appendChild(blk);
+    if(!overflows(cur.body))continue;
+    cur.body.removeChild(blk);
+
+    if(cur.body.children.length===0){                          // block alone is too tall
+      const rest=splitInto(blk,cur.body);
+      if(rest===blk){ cur.body.appendChild(blk); }             // cannot split — let it clip
+      else if(rest){ queue.unshift(rest); }
+      cur=makePage(doc,holder); pages.push(cur); continue;
+    }
+    const rest=splitInto(blk,cur.body);
+    if(rest===blk)queue.unshift(blk); else if(rest)queue.unshift(rest);
+    cur=makePage(doc,holder); pages.push(cur);
+  }
+  // drop a trailing empty page
+  const last=pages[pages.length-1];
+  if(pages.length>1 && last.body.children.length===0){last.slot.remove();pages.pop()}
+  // stamp the real page numbers in, and band the gaps between pages
+  pages.forEach((pg,i)=>{
+    pg.page.querySelector(".pagenum").textContent=(i+1)+" of "+pages.length;
+    if(i>0){
+      const bar=el("div","pgap");
+      bar.textContent="Page "+(i+1)+" / "+pages.length;
+      pg.slot.parentNode.insertBefore(bar,pg.slot);
+    }
+  });
+  return pages.length;
+}
+
+/* ============================================================
+   5. UI
+   ============================================================ */
+function fitZoom(){
+  const stage=document.getElementById("stage");
+  const avail=Math.max(260,stage.clientWidth-36);
+  document.documentElement.style.setProperty("--z",Math.min(1,avail/(210*(96/25.4))).toFixed(3));
+}
+function renderSegs(){
+  document.getElementById("stdSeg").innerHTML=Object.keys(TREE).map(k=>
+    `<button data-std="${k}" aria-pressed="${k===std}">${esc(TREE[k].label)}</button>`).join("");
+  const libs=Object.keys(TREE[std].libraries);
+  document.getElementById("libWrap").hidden=libs.length<2;
+  document.getElementById("libSeg").innerHTML=libs.map(k=>
+    `<button data-lib="${k}" aria-pressed="${k===lib}">${esc(TREE[std].libraries[k].label)}</button>`).join("");
+  document.querySelectorAll("[data-std]").forEach(b=>b.onclick=()=>{
+    std=b.dataset.std;lib=Object.keys(TREE[std].libraries)[0];renderSegs();renderList()});
+  document.querySelectorAll("[data-lib]").forEach(b=>b.onclick=()=>{lib=b.dataset.lib;renderSegs();renderList()});
+}
+function keyOf(ch,d){return std+"/"+lib+"/"+(ch||"-")+"/"+d.id}
+function matches(d){
+  if(!filter)return true;
+  const f=filter.toLowerCase();
+  return d.title.toLowerCase().includes(f)||(d.code||"").toLowerCase().includes(f);
+}
+function docRow(key,d,dupCodes){
+  const on=picked.has(key), dup=dupCodes.has(d.code);
+  return `<label class="sop ${on?"on":""}">
+    <input type="checkbox" data-key="${key}" ${on?"checked":""}>
+    <span class="t"><b>${esc(d.title)}</b><small>${d.kb?d.kb+" KB":""}</small></span>
+    <span class="code ${dup?"dup":""}" ${dup?'title="This code is used by more than one document"':""}>${esc(d.code)}</span></label>`;
+}
+function dupeSet(docs){
+  const seen={},dups=new Set();
+  docs.forEach(d=>{seen[d.code]=(seen[d.code]||0)+1});
+  Object.keys(seen).forEach(c=>{if(seen[c]>1)dups.add(c)});
+  return dups;
+}
+function renderList(){
+  const L=TREE[std].libraries[lib], wrap=document.getElementById("list");
+  const all=groupsOf(L).flatMap(([,d])=>d);
+  const dups=dupeSet(all);
+  if(L.flat){
+    const vis=L.flat.filter(matches);
+    wrap.innerHTML=vis.length
+      ? vis.map(d=>docRow(keyOf("",d),d,dups)).join("")
+      : `<div class="waiting">${L.flat.length?"Nothing matches that search.":esc(L.label)+" is empty — its Word files load straight into this list."}</div>`;
+  }else{
+    wrap.innerHTML=CHAPTERS.map(([code,name])=>{
+      const docs=(L.chapters[code]||[]).filter(matches);
+      const body=docs.length
+        ? docs.map(d=>docRow(keyOf(code,d),d,dups)).join("")
+        : `<div class="waiting">Empty folder &mdash; drop the ${esc(code)} Word files in and they appear here.</div>`;
+      return `<details class="folder"${docs.length?" open":""}><summary><span class="caret"></span>
+        <span class="fcode">${code}</span><span class="fname">${esc(name)}</span>
+        <span class="fcount">${docs.length}</span></summary><div class="fbody">${body}</div></details>`;
+    }).join("");
+  }
+  wrap.querySelectorAll("input").forEach(cb=>cb.onchange=()=>{
+    cb.checked?picked.add(cb.dataset.key):picked.delete(cb.dataset.key);renderList();renderStage()});
+  document.getElementById("count").textContent=picked.size+" selected";
+}
+function indexOf(key){
+  const [s,l,ch,id]=key.split("/");
+  const L=TREE[s]&&TREE[s].libraries[l]; if(!L)return null;
+  const list=L.flat||L.chapters[ch]||[];
+  const d=list.find(x=>x.id===id);
+  return d?{doc:d,std:s,lib:l,ch:ch==="-"?"":ch}:null;
+}
+function selected(){
+  const order=[];
+  Object.keys(TREE).forEach((s,si)=>Object.keys(TREE[s].libraries).forEach((l,li)=>
+    groupsOf(TREE[s].libraries[l]).forEach(([ch,docs],gi)=>docs.forEach((d,i)=>{
+      const k=s+"/"+l+"/"+(ch||"-")+"/"+d.id;
+      if(picked.has(k))order.push({k,doc:d,std:s,lib:l,ch,sort:[si,li,gi,i]});
+    }))));
+  return order;
+}
+/* The policy files normally sit in a docs/ folder beside this page, but some
+   upload routes flatten that folder away. Try both, and remember which worked. */
+let DOCBASE=null;
+async function getJSON(name){
+  const bases = DOCBASE!==null ? [DOCBASE] : ["docs/",""];
+  let err;
+  for(const b of bases){
+    try{
+      const r=await fetch(b+name);
+      if(r.ok){const j=await r.json(); DOCBASE=b; return j}
+      err=new Error(r.status+" "+b+name);
+    }catch(e){err=e}
+  }
+  throw err||new Error("not found: "+name);
+}
+async function loadDoc(d){
+  if(CACHE[d.id])return CACHE[d.id];
+  const j=await getJSON(encodeURIComponent(d.id)+".json");
+  CACHE[d.id]=j; return j;
+}
+async function renderStage(){
+  if(building)return;
+  const stage=document.getElementById("stage"), p=P();
+  if(!p){stage.innerHTML=`<div class="empty"><b>No hospital profile yet</b>
+    Open <i>Hospital profile</i> and fill it once. Every SOP then prints for that hospital.</div>`;return}
+  const sel=selected();
+  if(!sel.length){stage.innerHTML=`<div class="empty"><b>Nothing selected</b>
+    Tick an SOP to see it laid out on A4, headed and stamped for ${esc(p.hospital)}.</div>`;return}
+
+  building=true;
+  const note=document.getElementById("noticeTxt");
+  const btn=document.getElementById("btnPrint"); btn.disabled=true;
+  stage.innerHTML="";
+  try{
+    let total=0;
+    for(let n=0;n<sel.length;n++){
+      const s=sel[n];
+      note.textContent=`Laying out ${n+1} of ${sel.length}: ${s.doc.title.slice(0,54)}`;
+      let full;
+      try{ full=await loadDoc(s.doc); }
+      catch(e){
+        const w=el("div","empty");
+        w.innerHTML=`<b>${esc(s.doc.title)} could not be loaded</b>
+          Open the site by its web address rather than from a file on your computer.`;
+        stage.appendChild(w); continue;
+      }
+      const trail=el("div","divider");
+      trail.textContent=[TREE[s.std].libraries[s.lib].label,s.ch,s.doc.code].filter(Boolean).join(" · ");
+      stage.appendChild(trail);
+      total+=buildDocument({code:s.doc.code,title:s.doc.title,html:full.html},stage);
+      if(n<sel.length-1){
+        const d2=el("div","divider"); d2.textContent="blank separator"; stage.appendChild(d2);
+        const slot=el("div","slot"); slot.appendChild(el("div","page")); stage.appendChild(slot);
+      }
+      await new Promise(r=>setTimeout(r,0));   // let the browser paint between documents
+    }
+    note.textContent=`${sel.length} document${sel.length>1?"s":""} · ${total} page${total>1?"s":""} ready.`;
+  }finally{
+    building=false; btn.disabled=false; fitZoom();
+  }
+}
+function refreshTop(){const p=P();document.getElementById("hospName").textContent=p?p.hospital:"No hospital selected"}
+
+/* ---- profile modal ---- */
+function field(k,label,type){return `<div class="f"><label for="f_${k}">${label}</label>
+  <input id="f_${k}" type="${type||"text"}" data-k="${k}" value="${esc(draft[k])}"></div>`}
+function imgBody(k,label){return `<label>${label}</label>
+  <label class="drop"><span class="thumb" id="th_${k}">${draft[k]?`<img src="${draft[k]}" alt="">`:"none"}</span>
+  <span class="meta">${draft[k]?"Tap to replace":"Tap to upload PNG or JPG"}</span>
+  <input type="file" accept="image/*" data-img="${k}"></label>`}
+function imgField(k,label,wide){return `<div class="f${wide?" wide":""}">${imgBody(k,label)}</div>`}
+function openModal(){
+  draft=Object.assign({},BLANK,P()||{});
+  document.getElementById("modalRoot").innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-label="Hospital profile">
+    <header><h2>Hospital Profile</h2><button id="mx" aria-label="Close">&times;</button></header>
+    <div class="scroll">
+      <div class="group"><h3>Identity <em>every page</em></h3>
+        <div class="grid">
+          ${field("hospital","Hospital name (shown in this app)")}
+          ${field("codeShort","Hospital code")}
+          ${field("prefix","Doc. no. prefix")}
+          <div class="f"><label>Doc. no. will read</label><div class="auto" id="docPreview"></div></div>
+          ${imgField("logo","Letterhead logo")}
+          ${field("address","Address line under logo (optional)")}
+        </div></div>
+      <div class="group"><h3>Document control <em>header block</em></h3>
+        <div class="grid">
+          ${field("issueDate","Issue date","date")}
+          <div class="f"><label>Rev. date</label><div class="auto" id="revAuto"></div></div>
+          ${field("issueNo","Issue no.")}
+          ${field("revNo","Rev. no.")}
+        </div></div>
+      <div class="group"><h3>Sign-off <em>page 1</em></h3>
+        <div class="grid">
+          ${field("prepRole","Prepared by &mdash; role label")}
+          ${field("prepName","Prepared by &mdash; name")}
+          ${imgField("prepSign","Prepared by &mdash; signature (leave empty to sign by hand)",1)}
+          ${field("apprRole","Approved by &mdash; role label")}
+          ${field("apprName","Approved by &mdash; name")}
+          ${imgField("apprSign","Approved by &mdash; signature",1)}
+          <div class="f wide"><label class="chk"><input type="checkbox" id="updSame" ${draft.updSame?"checked":""}>
+            Responsibility of updating is the same person as Prepared by</label></div>
+          <div id="updFields" ${draft.updSame?"hidden":""} style="grid-column:1/-1"><div class="grid">
+            ${field("updRole","Responsibility of updating &mdash; role label")}
+            ${field("updName","Responsibility of updating &mdash; name")}
+            ${imgField("updSign","Responsibility of updating &mdash; signature",1)}
+          </div></div>
+        </div></div>
+      <div class="group"><h3>Stamp <em>every page</em></h3>
+        <div class="grid">${imgBody("stamp","Hospital stamp (PNG with transparent background works best)")}</div></div>
+    </div>
+    <footer><span class="note">All fields save automatically on this device.</span>
+      <button class="btn btn-primary" id="mdone">Done</button></footer>
+  </div></div>`;
+
+  const root=document.getElementById("modalRoot");
+  root.querySelectorAll("input[data-k]").forEach(i=>i.oninput=()=>{draft[i.dataset.k]=i.value;syncAuto()});
+  root.querySelectorAll("input[data-img]").forEach(i=>i.onchange=e=>{
+    const f=e.target.files[0];if(!f)return;const r=new FileReader();
+    r.onload=()=>{const k=i.dataset.img;draft[k]=r.result;
+      const th=document.getElementById("th_"+k);if(th)th.innerHTML=`<img src="${r.result}" alt="">`};
+    r.readAsDataURL(f)});
+  const us=document.getElementById("updSame");
+  us.onchange=()=>{draft.updSame=us.checked;document.getElementById("updFields").hidden=us.checked};
+  document.getElementById("mx").onclick=closeModal;
+  document.getElementById("mdone").onclick=()=>{
+    const name=(draft.hospital||"").trim();
+    if(!name){const e2=document.getElementById("f_hospital");e2.focus();e2.style.borderColor="#c0392b";return}
+    if(store.active&&store.active!==name)delete store.profiles[store.active];
+    store.profiles[name]=draft;store.active=name;save();closeModal();refreshTop();renderStage()};
+  syncAuto();
+}
+function syncAuto(){
+  const r=document.getElementById("revAuto");
+  if(r)r.innerHTML=`<i>auto &middot; +1 yr:</i> <b>${draft.issueDate?dmy(plusYear(draft.issueDate)):"—"}</b>`;
+  const d=document.getElementById("docPreview");
+  if(d)d.innerHTML=`<b>${esc(draft.prefix||"NABH")}/${esc(draft.codeShort||"____")}/RAOIEP</b>`;
+}
+function closeModal(){document.getElementById("modalRoot").innerHTML=""}
+
+function changeHospital(){
+  const names=Object.keys(store.profiles);
+  if(!names.length){openModal();return}
+  document.getElementById("modalRoot").innerHTML=`<div class="scrim"><div class="modal" style="width:min(460px,100%)">
+    <header><h2>Switch hospital</h2><button id="cx" aria-label="Close">&times;</button></header>
+    <div class="scroll">${names.map(n=>`<button class="btn pick-row" data-n="${esc(n)}">${esc(n)}${n===store.active?" &middot; current":""}</button>`).join("")}</div>
+    <footer><button class="btn btn-primary" id="cnew">Add new hospital</button></footer></div></div>`;
+  document.getElementById("cx").onclick=closeModal;
+  document.getElementById("cnew").onclick=()=>{store.active="";save();closeModal();openModal()};
+  document.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{
+    store.active=b.dataset.n;save();closeModal();refreshTop();renderStage()});
+}
+
+document.getElementById("btnProfile").onclick=openModal;
+document.getElementById("btnChange").onclick=changeHospital;
+document.getElementById("btnPrint").onclick=()=>window.print();
+document.getElementById("btnAll").onclick=()=>{
+  groupsOf(TREE[std].libraries[lib]).forEach(([ch,docs])=>
+    docs.filter(matches).forEach(d=>picked.add(keyOf(ch,d))));
+  renderList();renderStage()};
+document.getElementById("btnClear").onclick=()=>{picked.clear();renderList();renderStage()};
+let st=null;
+document.getElementById("search").oninput=e=>{
+  clearTimeout(st); const v=e.target.value;
+  st=setTimeout(()=>{filter=v;renderList()},160)};
+window.addEventListener("resize",fitZoom);
+
+/* ---- boot ---- */
+(async function(){
+  try{
+    TREE.NABH.libraries.HOPE.flat=await getJSON("_index.json");
+  }catch(e){
+    document.getElementById("noticeTxt").textContent=
+      "The document list could not be loaded — check that the policy files were uploaded "+
+      "alongside this page, and open the site by its web address rather than as a file.";
+  }
+  renderSegs();renderList();refreshTop();renderStage();
+  if(!P())openModal();
+})();
+</script>
+</body>
+</html>

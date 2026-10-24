@@ -741,6 +741,7 @@ window.addEventListener("resize",fitZoom);
 (async function(){
   try{
     TREE.NABH.libraries.HOPE.flat=await getJSON("_index.json");
+    try{ TREE.NABH.libraries.MAIN.flat=await getJSON("_main.json"); }catch(e){}
   }catch(e){
     document.getElementById("noticeTxt").textContent=
       "The document list could not be loaded — check that the policy files were uploaded "+

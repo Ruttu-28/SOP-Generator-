@@ -25,8 +25,6 @@ input,select,textarea{font:inherit;color:inherit}
 .app{display:flex;flex-direction:column;height:100%}
 .topbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:12px 16px;
   background:var(--card);border-bottom:1px solid var(--line)}
-.brand{font-weight:600;letter-spacing:-.01em}
-.brand span{display:block;font-weight:400;font-size:11.5px;color:var(--ink-2)}
 .working{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .working .lbl{font-size:12px;color:var(--ink-2)}
 .working .name{font-weight:600}
@@ -325,18 +323,25 @@ function headerHTML(doc){
     <tr><td class="k">Page</td><td class="pagenum" colspan="3">&nbsp;</td></tr>
   </table>`;
 }
-function signBlock(role,name,sign){
+/* Libraries printed without the signature line or the page stamp. */
+const UNSIGNED_LIBRARIES=new Set(["MAIN"]);
+function unsigned(doc){return UNSIGNED_LIBRARIES.has(doc.lib)}
+
+function signBlock(role,name,sign,showSign){
   return `<div class="sign-row">${esc(role)}</div>
-    <div class="sign-row">Name&nbsp;&nbsp;&nbsp;&nbsp;: ${esc(name)}</div>
-    <div class="sign-row">Signature : <span class="sigline">${sign?`<img src="${sign}" alt="">`:""}</span></div>`;
+    <div class="sign-row">Name&nbsp;&nbsp;&nbsp;&nbsp;: ${esc(name)}</div>`
+    + (showSign
+       ? `<div class="sign-row">Signature : <span class="sigline">${sign?`<img src="${sign}" alt="">`:""}</span></div>`
+       : "");
 }
 function titleHTML(doc){
   const p=P(), upd=p.updSame?{r:p.prepRole,n:p.prepName,s:p.prepSign}:{r:p.updRole,n:p.updName,s:p.updSign};
+  const sg=!unsigned(doc);
   return `<h1 class="doctitle">${esc(doc.title)}</h1>
   <table class="sign">
-    <tr><td class="lbl">Prepared by:</td><td>${signBlock(p.prepRole,p.prepName,p.prepSign)}</td></tr>
-    <tr><td class="lbl">Approved By:</td><td>${signBlock(p.apprRole,p.apprName,p.apprSign)}</td></tr>
-    <tr><td class="lbl">Responsibility of Updating :</td><td>${signBlock(upd.r,upd.n,upd.s)}</td></tr>
+    <tr><td class="lbl">Prepared by:</td><td>${signBlock(p.prepRole,p.prepName,p.prepSign,sg)}</td></tr>
+    <tr><td class="lbl">Approved By:</td><td>${signBlock(p.apprRole,p.apprName,p.apprSign,sg)}</td></tr>
+    <tr><td class="lbl">Responsibility of Updating :</td><td>${signBlock(upd.r,upd.n,upd.s,sg)}</td></tr>
   </table>`;
 }
 function amendHTML(){
@@ -357,9 +362,12 @@ function makePage(doc,mount){
   const body=el("div","pbody");
   page.appendChild(body);
   page.appendChild(el("div","pframe"));
-  const stamp=el("div","stamp");
-  const p=P(); if(p.stamp)stamp.innerHTML=`<img src="${p.stamp}" alt="">`;
-  page.appendChild(stamp);
+  const p=P();
+  if(!unsigned(doc)){
+    const stamp=el("div","stamp");
+    if(p.stamp)stamp.innerHTML=`<img src="${p.stamp}" alt="">`;
+    page.appendChild(stamp);
+  }
   slot.appendChild(page); mount.appendChild(slot);
   // available height = page box minus padding minus the header table
   const hdr=page.querySelector("table.hdr");
@@ -633,7 +641,7 @@ async function renderStage(){
       const trail=el("div","divider");
       trail.textContent=[TREE[s.std].libraries[s.lib].label,s.ch,s.doc.code].filter(Boolean).join(" · ");
       stage.appendChild(trail);
-      total+=buildDocument({code:s.doc.code,title:s.doc.title,html:full.html},stage);
+      total+=buildDocument({code:s.doc.code,title:s.doc.title,html:full.html,lib:s.lib},stage);
       if(n<sel.length-1){
         const d2=el("div","divider"); d2.textContent="blank separator"; stage.appendChild(d2);
         const slot=el("div","slot"); slot.appendChild(el("div","page")); stage.appendChild(slot);

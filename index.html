@@ -248,6 +248,7 @@ table.amend td{height:7.4mm}
 const CHAPTERS=[
  ["AAC","Access, assessment and continuity of care"],
  ["COP","Care of patients"],
+ ["CQI","Continuous quality improvement"],
  ["FMS","Facility management and safety"],
  ["HIC","Hospital infection control"],
  ["HRM","Human resource management"],
@@ -741,6 +742,11 @@ window.addEventListener("resize",fitZoom);
   try{
     TREE.NABH.libraries.HOPE.flat=await getJSON("_index.json");
     try{ TREE.NABH.libraries.MAIN.flat=await getJSON("_main.json"); }catch(e){}
+    // each Ayurvedic chapter is its own file, so folders can be filled one at a time
+    const ay=TREE.AYUSH.libraries.AYUSH.chapters;
+    for(const [c] of CHAPTERS){
+      try{ ay[c]=await getJSON("_ay_"+c+".json"); }catch(e){ ay[c]=[] }
+    }
   }catch(e){
     document.getElementById("noticeTxt").textContent=
       "The document list could not be loaded — check that the policy files were uploaded "+

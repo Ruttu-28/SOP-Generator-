@@ -745,9 +745,12 @@ window.addEventListener("resize",fitZoom);
   try{
     TREE.NABH.libraries.HOPE.flat=await getJSON("_index.json");
     try{ TREE.NABH.libraries.MAIN.flat=await getJSON("_main.json"); }catch(e){}
-    // each Ayurvedic chapter is its own file, so folders can be filled one at a time
+    // each Ayurvedic chapter is its own file, so folders can be filled one at a
+    // time; the manifest says which exist, so empty ones are never requested
     const ay=TREE.AYUSH.libraries.AYUSH.chapters;
-    for(const [c] of CHAPTERS){
+    let have=[];
+    try{ have=await getJSON("_chapters.json"); }catch(e){}
+    for(const c of have){
       try{ ay[c]=await getJSON("_ay_"+c+".json"); }catch(e){ ay[c]=[] }
     }
   }catch(e){

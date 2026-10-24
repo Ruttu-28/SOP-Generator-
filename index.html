@@ -140,6 +140,12 @@ table.amend td{height:7.4mm}
 .pbody table.t.toc th,.pbody table.t.toc td{font-size:10pt;padding:4pt 7pt}
 .pbody table.t.toc th{background:none}
 .pbody img{max-width:100%;height:auto;display:block;margin:5pt auto}
+/* a scanned form or annexure: its own page, printed as large as it will fit */
+.pbody>.imgpage{height:100%;display:flex;align-items:center;justify-content:center;margin:0;overflow:hidden}
+/* min-width/height 0: a flex item will not otherwise shrink below its
+   intrinsic size, so a tall scan overflows the page sideways */
+.pbody>.imgpage img{width:100%;height:100%;min-width:0;min-height:0;
+  object-fit:contain;margin:0}
 /* Word-style page border, half-point rule, inset clear of the printable edge */
 .pframe{position:absolute;left:8mm;right:8mm;top:7mm;bottom:7mm;border:0.5pt solid #000;pointer-events:none}
 .stamp{position:absolute;right:12.7mm;bottom:9.5mm;width:25mm;height:25mm}
@@ -465,6 +471,12 @@ function buildDocument(doc,mount){
     if(blk.classList && blk.classList.contains("brk")){       // forced page break
       if(cur.body.children.length){cur=makePage(doc,holder);pages.push(cur)}
       continue;                                               // never leave a page blank
+    }
+    if(blk.classList && blk.classList.contains("imgpage")){   // full-page scan
+      if(cur.body.children.length){cur=makePage(doc,holder);pages.push(cur)}
+      cur.body.appendChild(blk);
+      cur=makePage(doc,holder); pages.push(cur);
+      continue;
     }
     cur.body.appendChild(blk);
     if(!overflows(cur.body))continue;
